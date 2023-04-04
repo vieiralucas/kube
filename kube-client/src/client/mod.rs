@@ -123,6 +123,7 @@ impl Client {
     /// If you already have a [`Config`] then use [`Client::try_from`](Self::try_from)
     /// instead.
     pub async fn try_default() -> Result<Self> {
+        println!("try_default: 1");
         Self::try_from(Config::infer().await.map_err(Error::InferConfig)?)
     }
 
@@ -456,6 +457,7 @@ impl TryFrom<Config> for Client {
 
     /// Builds a default [`Client`] from a [`Config`], see [`ClientBuilder`] if more customization is required
     fn try_from(config: Config) -> Result<Self> {
+        println!("try_from");
         Ok(ClientBuilder::try_from(config)?.build())
     }
 }

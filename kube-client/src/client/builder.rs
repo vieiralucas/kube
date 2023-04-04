@@ -74,8 +74,11 @@ impl TryFrom<Config> for ClientBuilder<BoxService<Request<hyper::Body>, Response
         let default_ns = config.default_namespace.clone();
 
         let client: hyper::Client<_, hyper::Body> = {
+            println!("try_from: 1");
             let mut connector = HttpConnector::new();
+            println!("try_from: 2");
             connector.enforce_http(false);
+            println!("try_from: 3");
 
             // Current TLS feature precedence when more than one are set:
             // 1. openssl-tls
@@ -84,26 +87,35 @@ impl TryFrom<Config> for ClientBuilder<BoxService<Request<hyper::Body>, Response
             // If TLS features are not enabled, http connector will be used.
             #[cfg(feature = "openssl-tls")]
             let connector = config.openssl_https_connector_with_connector(connector)?;
+            println!("try_from: 4");
             #[cfg(all(not(feature = "openssl-tls"), feature = "rustls-tls"))]
             let connector = config.rustls_https_connector_with_connector(connector)?;
+            println!("try_from: 5");
 
             let mut connector = TimeoutConnector::new(connector);
+            println!("try_from: 6");
 
             // Set the timeouts for the client
             connector.set_connect_timeout(config.connect_timeout);
+            println!("try_from: 7");
             connector.set_read_timeout(config.read_timeout);
+            println!("try_from: 8");
             connector.set_write_timeout(config.write_timeout);
+            println!("try_from: 9");
 
             hyper::Client::builder().build(connector)
         };
 
+        println!("try_from: 10");
         let stack = ServiceBuilder::new().layer(config.base_uri_layer()).into_inner();
         #[cfg(feature = "gzip")]
+        println!("try_from: 11");
         let stack = ServiceBuilder::new()
             .layer(stack)
             .layer(tower_http::decompression::DecompressionLayer::new())
             .into_inner();
 
+        println!("try_from: 12");
         let service = ServiceBuilder::new()
             .layer(stack)
             .option_layer(config.auth_layer()?)
@@ -124,18 +136,24 @@ impl TryFrom<Config> for ClientBuilder<BoxService<Request<hyper::Body>, Response
                         )
                     })
                     .on_request(|_req: &Request<hyper::Body>, _span: &Span| {
+                        println!("try_from: 13");
                         tracing::debug!("requesting");
                     })
                     .on_response(|res: &Response<hyper::Body>, _latency: Duration, span: &Span| {
+                        println!("try_from: 14");
                         let status = res.status();
                         span.record("http.status_code", status.as_u16());
+                        println!("try_from: 15");
                         if status.is_client_error() || status.is_server_error() {
+                            println!("try_from: 16");
                             span.record("otel.status_code", "ERROR");
                         }
+                        println!("try_from: 17");
                     })
                     // Explicitly disable `on_body_chunk`. The default does nothing.
                     .on_body_chunk(())
                     .on_eos(|_: Option<&HeaderMap>, _duration: Duration, _span: &Span| {
+                        println!("try_from: 18");
                         tracing::debug!("stream closed");
                     })
                     .on_failure(|ec: ServerErrorsFailureClass, _latency: Duration, span: &Span| {

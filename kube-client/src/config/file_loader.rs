@@ -25,15 +25,17 @@ pub struct ConfigLoader {
 
 impl ConfigLoader {
     /// Returns a config loader based on the cluster information from the kubeconfig file.
-    pub async fn new_from_options(options: &KubeConfigOptions) -> Result<Self, KubeconfigError> {
+    pub fn new_from_options(options: &KubeConfigOptions) -> Result<Self, KubeconfigError> {
+        println!("new_from_options: 1");
         let config = Kubeconfig::read()?;
+        println!("new_from_options: 2");
         let loader = Self::load(
             config,
             options.context.as_ref(),
             options.cluster.as_ref(),
             options.user.as_ref(),
-        )
-        .await?;
+        )?;
+        println!("new_from_options: 3");
 
         Ok(loader)
     }
@@ -47,23 +49,26 @@ impl ConfigLoader {
             options.context.as_ref(),
             options.cluster.as_ref(),
             options.user.as_ref(),
-        )
-        .await?;
+        )?;
 
         Ok(loader)
     }
 
-    pub async fn load(
+    pub fn load(
         config: Kubeconfig,
         context: Option<&String>,
         cluster: Option<&String>,
         user: Option<&String>,
     ) -> Result<Self, KubeconfigError> {
+        println!("load: 1");
         let context_name = if let Some(name) = context {
+        println!("load: 2");
             name
         } else if let Some(name) = &config.current_context {
+        println!("load: 3");
             name
         } else {
+        println!("load: 4");
             return Err(KubeconfigError::CurrentContextNotSet);
         };
 
@@ -73,6 +78,7 @@ impl ConfigLoader {
             .find(|named_context| &named_context.name == context_name)
             .and_then(|named_context| named_context.context.clone())
             .ok_or_else(|| KubeconfigError::LoadContext(context_name.clone()))?;
+        println!("load: 5");
 
         let cluster_name = cluster.unwrap_or(&current_context.cluster);
         let cluster = config
@@ -81,6 +87,7 @@ impl ConfigLoader {
             .find(|named_cluster| &named_cluster.name == cluster_name)
             .and_then(|named_cluster| named_cluster.cluster.clone())
             .ok_or_else(|| KubeconfigError::LoadClusterOfContext(cluster_name.clone()))?;
+        println!("load: 6");
 
         let user_name = user.unwrap_or(&current_context.user);
         let user = config
@@ -89,6 +96,7 @@ impl ConfigLoader {
             .find(|named_user| &named_user.name == user_name)
             .and_then(|named_user| named_user.auth_info.clone())
             .ok_or_else(|| KubeconfigError::FindUser(user_name.clone()))?;
+        println!("load: 7");
 
         Ok(ConfigLoader {
             current_context,

@@ -188,8 +188,10 @@ impl Config {
     /// [`Config::apply_debug_overrides`] is used to augment the loaded
     /// configuration based on the environment.
     pub async fn infer() -> Result<Self, InferConfigError> {
-        let mut config = match Self::from_kubeconfig(&KubeConfigOptions::default()).await {
+        println!("config infer: 1");
+        let mut config = match Self::from_kubeconfig(&KubeConfigOptions::default()) {
             Err(kubeconfig_err) => {
+                println!("config infer: 2");
                 tracing::trace!(
                     error = &kubeconfig_err as &dyn std::error::Error,
                     "no local config found, falling back to local in-cluster config"
@@ -202,7 +204,9 @@ impl Config {
             }
             Ok(success) => success,
         };
+        println!("config infer: 3");
         config.apply_debug_overrides();
+        println!("config infer: 4");
         Ok(config)
     }
 
@@ -216,11 +220,15 @@ impl Config {
     /// `tls-server-name = "kubernetes.default.svc"` to the resulting configuration.
     /// Overriding or unsetting `Config::tls_server_name` will avoid this behaviour.
     pub fn incluster() -> Result<Self, InClusterError> {
+        println!("incluster: 1");
         let mut cfg = Self::incluster_env()?;
+        println!("incluster: 2");
         if cfg!(all(not(feature = "openssl-tls"), feature = "rustls-tls")) {
             // openssl takes precedence when both features present, so only do it when only rustls is there
             cfg.tls_server_name = Some("kubernetes.default.svc".to_string());
+            println!("incluster: 3");
         }
+        println!("incluster: 4");
         Ok(cfg)
     }
 
@@ -277,9 +285,11 @@ impl Config {
     /// This will respect the `$KUBECONFIG` evar, but otherwise default to `~/.kube/config`.
     /// You can also customize what context/cluster/user you want to use here,
     /// but it will default to the current-context.
-    pub async fn from_kubeconfig(options: &KubeConfigOptions) -> Result<Self, KubeconfigError> {
-        let loader = ConfigLoader::new_from_options(options).await?;
-        Self::new_from_loader(loader).await
+    pub fn from_kubeconfig(options: &KubeConfigOptions) -> Result<Self, KubeconfigError> {
+        println!("from_kubeconfig: 1");
+        let loader = ConfigLoader::new_from_options(options)?;
+        println!("from_kubeconfig: 2");
+        Self::new_from_loader(loader)
     }
 
     /// Create configuration from a [`Kubeconfig`] struct
@@ -290,10 +300,11 @@ impl Config {
         options: &KubeConfigOptions,
     ) -> Result<Self, KubeconfigError> {
         let loader = ConfigLoader::new_from_kubeconfig(kubeconfig, options).await?;
-        Self::new_from_loader(loader).await
+        Self::new_from_loader(loader)
     }
 
-    async fn new_from_loader(loader: ConfigLoader) -> Result<Self, KubeconfigError> {
+    fn new_from_loader(loader: ConfigLoader) -> Result<Self, KubeconfigError> {
+        println!("new_from_loader: 1");
         let cluster_url = loader
             .cluster
             .server
@@ -301,17 +312,20 @@ impl Config {
             .ok_or(KubeconfigError::MissingClusterUrl)?
             .parse::<http::Uri>()
             .map_err(KubeconfigError::ParseClusterUrl)?;
+        println!("new_from_loader: 2");
 
         let default_namespace = loader
             .current_context
             .namespace
             .clone()
             .unwrap_or_else(|| String::from("default"));
+        println!("new_from_loader: 3");
 
         let accept_invalid_certs = loader.cluster.insecure_skip_tls_verify.unwrap_or(false);
         let mut root_cert = None;
 
         if let Some(ca_bundle) = loader.ca_bundle()? {
+            println!("new_from_loader: 4");
             root_cert = Some(ca_bundle);
         }
 
